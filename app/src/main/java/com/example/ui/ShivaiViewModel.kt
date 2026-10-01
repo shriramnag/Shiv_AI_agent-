@@ -94,6 +94,24 @@ class ShivaiViewModel(application: Application) : AndroidViewModel(application) 
         .getAllMemories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val smartDevices: StateFlow<List<com.example.data.local.SmartDeviceEntity>> = database.smartDeviceDao()
+        .getAllDevices()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val documents: StateFlow<List<com.example.data.local.DocumentEntity>> = database.documentDao()
+        .getAllDocuments()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val meetingSummaries: StateFlow<List<com.example.data.local.MeetingScribeEntity>> = database.meetingScribeDao()
+        .getAllMeetings()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _floatingOverlayActive = MutableStateFlow(settingsPrefs.floatingOverlayEnabled)
+    val floatingOverlayActive: StateFlow<Boolean> = _floatingOverlayActive.asStateFlow()
+
+    private val _biometricSecurityActive = MutableStateFlow(settingsPrefs.biometricSecurityEnabled)
+    val biometricSecurityActive: StateFlow<Boolean> = _biometricSecurityActive.asStateFlow()
+
     // Advanced Studio & Generative State
     private val _isGeneratingAsset = MutableStateFlow(false)
     val isGeneratingAsset: StateFlow<Boolean> = _isGeneratingAsset.asStateFlow()
@@ -582,6 +600,140 @@ class ShivaiViewModel(application: Application) : AndroidViewModel(application) 
 
     fun playAudioTrack(base64Pcm: String) {
         audioTrackPlayer.enqueueBase64Chunk(base64Pcm)
+    }
+
+    // --- SMART HOME IOT ACTIONS ---
+
+    fun toggleSmartDevice(id: Long, power: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val dev = database.smartDeviceDao().getAllDevicesList().firstOrNull { it.id == id }
+            if (dev != null) {
+                database.smartDeviceDao().updateDevice(dev.copy(isPoweredOn = power))
+            }
+        }
+    }
+
+    fun setSmartDeviceValue(id: Long, value: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val dev = database.smartDeviceDao().getAllDevicesList().firstOrNull { it.id == id }
+            if (dev != null) {
+                database.smartDeviceDao().updateDevice(dev.copy(isPoweredOn = true, brightnessOrValue = value))
+            }
+        }
+    }
+
+    fun activateSmartScene(sceneName: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val all = database.smartDeviceDao().getAllDevicesList()
+            when (sceneName.lowercase()) {
+                "bedtime", "sleep" -> {
+                    all.forEach { dev ->
+                        if (dev.type == "LIGHT" || dev.type == "TV") {
+                            database.smartDeviceDao().updateDevice(dev.copy(isPoweredOn = false))
+                        } else if (dev.type == "AC") {
+                            database.smartDeviceDao().updateDevice(dev.copy(isPoweredOn = true, brightnessOrValue = 24))
+                        }
+                    }
+                }
+                "movie night" -> {
+                    all.forEach { dev ->
+                        if (dev.type == "LIGHT") {
+                            database.smartDeviceDao().updateDevice(dev.copy(isPoweredOn = true, brightnessOrValue = 20))
+                        } else if (dev.type == "TV") {
+                            database.smartDeviceDao().updateDevice(dev.copy(isPoweredOn = true))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // --- KNOWLEDGE VAULT (RAG) ACTIONS ---
+
+    fun addKnowledgeDocument(title: String, content: String, type: String = "TXT") {
+        viewModelScope.launch(Dispatchers.IO) {
+            val doc = com.example.data.local.DocumentEntity(title = title, content = content, fileType = type)
+            database.documentDao().insertDocument(doc)
+        }
+    }
+
+    fun deleteKnowledgeDocument(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            database.documentDao().deleteDocumentById(id)
+        }
+    }
+
+    // --- MEETING SCRIBE ACTIONS ---
+
+    fun createMeetingSummary(title: String, rawTranscript: String) {
+        val apiKey = settingsPrefs.getEffectiveApiKey()
+        if (apiKey.isBlank()) {
+            _errorMessage.value = "API key required for Meeting Scribe."
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            _isGeneratingAsset.value = true
+            val prompt = """
+                Analyze the following meeting transcript.
+                Generate:
+                1. EXECUTIVE SUMMARY (2-3 sentences)
+                2. KEY DISCUSSION POINTS (bullet points)
+                3. ACTION ITEMS & NEXT STEPS (task list with deadlines/owners if mentioned)
+
+                Transcript:
+                $rawTranscript
+            """.trimIndent()
+
+            val result = restClient.generateContentWithTools(
+                apiKey = apiKey,
+                model = settingsPrefs.textModel,
+                systemInstruction = "You are an executive meeting scribe producing crisp, structured meeting minutes.",
+                conversationHistory = emptyList(),
+                userPrompt = prompt,
+                enableTools = false
+            )
+            _isGeneratingAsset.value = false
+
+            if (result.success) {
+                val fullText = result.text
+                val entity = com.example.data.local.MeetingScribeEntity(
+                    title = title.ifBlank { "Meeting on ${java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.US).format(java.util.Date())}" },
+                    executiveSummary = fullText.substringBefore("2. KEY DISCUSSION POINTS").replace("1. EXECUTIVE SUMMARY", "").trim(),
+                    keyPoints = fullText.substringAfter("2. KEY DISCUSSION POINTS").substringBefore("3. ACTION ITEMS").trim(),
+                    actionItems = fullText.substringAfter("3. ACTION ITEMS").trim(),
+                    rawTranscript = rawTranscript
+                )
+                database.meetingScribeDao().insertMeeting(entity)
+            } else {
+                _errorMessage.value = result.errorMessage ?: "Failed to generate meeting minutes."
+            }
+        }
+    }
+
+    fun deleteMeetingSummary(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            database.meetingScribeDao().deleteMeetingById(id)
+        }
+    }
+
+    // --- FLOATING OVERLAY & BIOMETRICS ---
+
+    fun toggleFloatingOverlay(context: Context) {
+        val newState = !_floatingOverlayActive.value
+        _floatingOverlayActive.value = newState
+        settingsPrefs.floatingOverlayEnabled = newState
+        if (newState) {
+            com.example.service.ShivaiFloatingOverlayService.start(context)
+        } else {
+            com.example.service.ShivaiFloatingOverlayService.stop(context)
+        }
+    }
+
+    fun toggleBiometricSecurity() {
+        val newState = !_biometricSecurityActive.value
+        _biometricSecurityActive.value = newState
+        settingsPrefs.biometricSecurityEnabled = newState
     }
 
     override fun onCleared() {

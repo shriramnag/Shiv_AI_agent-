@@ -23,18 +23,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.NoteAdd
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.FlashlightOn
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -112,7 +112,7 @@ fun HomeScreen(
             viewModel.sendTextMessage("Shivai, inspect current screen content and summarize visible UI elements.")
             onNavigateToChat()
         },
-        QuickActionItem("Quick Note", "Create personal note", Icons.Default.NoteAdd, NeonGold) {
+        QuickActionItem("Quick Note", "Create personal note", Icons.AutoMirrored.Filled.NoteAdd, NeonGold) {
             onNavigateToNotes()
         },
         QuickActionItem("Recall Memory", "View long-term facts", Icons.Default.Psychology, NeonGreen) {

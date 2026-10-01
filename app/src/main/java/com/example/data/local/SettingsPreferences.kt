@@ -22,6 +22,9 @@ class SettingsPreferences(context: Context) {
         private const val KEY_BARGE_IN = "barge_in_enabled"
         private const val KEY_MEMORY_ENABLED = "memory_enabled"
         private const val KEY_REQUIRE_CONFIRMATION = "require_confirmation"
+        private const val KEY_FLOATING_OVERLAY = "floating_overlay_enabled"
+        private const val KEY_BIOMETRIC_SECURITY = "biometric_security_enabled"
+        private const val KEY_HOME_ASSISTANT_URL = "home_assistant_url"
 
         const val DEFAULT_LIVE_MODEL = "gemini-3.8-live"
         const val DEFAULT_TEXT_MODEL = "gemini-3.5-flash"
@@ -108,4 +111,16 @@ class SettingsPreferences(context: Context) {
     var requireConfirmation: Boolean
         get() = prefs.getBoolean(KEY_REQUIRE_CONFIRMATION, true)
         set(value) = prefs.edit().putBoolean(KEY_REQUIRE_CONFIRMATION, value).apply()
+
+    var floatingOverlayEnabled: Boolean
+        get() = prefs.getBoolean(KEY_FLOATING_OVERLAY, false)
+        set(value) = prefs.edit().putBoolean(KEY_FLOATING_OVERLAY, value).apply()
+
+    var biometricSecurityEnabled: Boolean
+        get() = prefs.getBoolean(KEY_BIOMETRIC_SECURITY, false)
+        set(value) = prefs.edit().putBoolean(KEY_BIOMETRIC_SECURITY, value).apply()
+
+    var homeAssistantUrl: String
+        get() = prefs.getString(KEY_HOME_ASSISTANT_URL, "http://homeassistant.local:8123") ?: "http://homeassistant.local:8123"
+        set(value) = prefs.edit().putString(KEY_HOME_ASSISTANT_URL, value).apply()
 }

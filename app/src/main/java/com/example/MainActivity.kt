@@ -20,8 +20,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.NoteAlt
 import androidx.compose.material.icons.filled.Psychology
@@ -67,7 +67,7 @@ import com.example.ui.theme.TextSecondary
 
 enum class ShivaiTab(val title: String, val icon: ImageVector) {
     HOME("Home", Icons.Default.Home),
-    CHAT("Chat", Icons.Default.Chat),
+    CHAT("Chat", Icons.AutoMirrored.Filled.Chat),
     STUDIO("Studio", Icons.Default.AutoAwesome),
     NOTES("Notes", Icons.Default.NoteAlt),
     MEMORY("Memory", Icons.Default.Psychology),

@@ -9,15 +9,20 @@ import com.example.data.local.ShivaiDatabase
 import com.example.tools.AppControlTool
 import com.example.tools.CommunicationTool
 import com.example.tools.DeviceControlTool
+import com.example.tools.KnowledgeBaseTool
 import com.example.tools.MemoryTool
 import com.example.tools.NotesTool
 import com.example.tools.ScreenTool
+import com.example.tools.SmartHomeTool
 import com.example.tools.ToolRegistry
 import com.example.tools.WebSearchTool
 import com.example.voice.AudioTrackPlayer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 data class ConfirmationRequest(
     val prompt: String,
@@ -69,8 +74,23 @@ class ShivaiApplication : Application() {
             CommunicationTool(this) { prompt, action ->
                 requestConfirmation(prompt, action)
             },
+            SmartHomeTool(database.smartDeviceDao()),
+            KnowledgeBaseTool(database.documentDao()),
             WebSearchTool(this)
         )
+
+        CoroutineScope(Dispatchers.IO).launch {
+            if (database.smartDeviceDao().getAllDevicesList().isEmpty()) {
+                database.smartDeviceDao().insertAll(
+                    listOf(
+                        com.example.data.local.SmartDeviceEntity(name = "Living Room Light", type = "LIGHT", room = "Living Room", isPoweredOn = true, brightnessOrValue = 80),
+                        com.example.data.local.SmartDeviceEntity(name = "Bedroom AC", type = "AC", room = "Bedroom", isPoweredOn = true, brightnessOrValue = 24),
+                        com.example.data.local.SmartDeviceEntity(name = "Kitchen Smart Plug", type = "PLUG", room = "Kitchen", isPoweredOn = false),
+                        com.example.data.local.SmartDeviceEntity(name = "Smart TV", type = "TV", room = "Living Room", isPoweredOn = false)
+                    )
+                )
+            }
+        }
 
         toolRegistry = ToolRegistry(tools)
         restClient = GeminiRestClient(toolRegistry)

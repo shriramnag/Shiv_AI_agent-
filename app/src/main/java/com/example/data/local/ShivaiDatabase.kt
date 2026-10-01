@@ -6,14 +6,24 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [NoteEntity::class, MemoryEntity::class, ChatMessageEntity::class],
-    version = 1,
+    entities = [
+        NoteEntity::class,
+        MemoryEntity::class,
+        ChatMessageEntity::class,
+        DocumentEntity::class,
+        MeetingScribeEntity::class,
+        SmartDeviceEntity::class
+    ],
+    version = 2,
     exportSchema = false
 )
 abstract class ShivaiDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
     abstract fun memoryDao(): MemoryDao
     abstract fun chatMessageDao(): ChatMessageDao
+    abstract fun documentDao(): DocumentDao
+    abstract fun meetingScribeDao(): MeetingScribeDao
+    abstract fun smartDeviceDao(): SmartDeviceDao
 
     companion object {
         @Volatile
@@ -25,7 +35,7 @@ abstract class ShivaiDatabase : RoomDatabase() {
                     context.applicationContext,
                     ShivaiDatabase::class.java,
                     "shivai_database"
-                ).fallbackToDestructiveMigration().build()
+                ).fallbackToDestructiveMigration(dropAllTables = true).build()
                 INSTANCE = instance
                 instance
             }

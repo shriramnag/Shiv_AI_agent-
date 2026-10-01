@@ -26,16 +26,24 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AcUnit
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Power
+import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -50,6 +58,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
@@ -93,7 +105,16 @@ fun StudioHubScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
     val isGenerating by viewModel.isGeneratingAsset.collectAsState()
 
-    val tabs = listOf("Vision AI", "Image Studio", "Veo Video", "Lyria Music", "Grounding")
+    val tabs = listOf(
+        "Vision AI",
+        "Image Studio",
+        "Veo Video",
+        "Lyria Music",
+        "Grounding",
+        "Smart Home",
+        "Knowledge Vault",
+        "Meeting Scribe"
+    )
 
     Column(
         modifier = Modifier
@@ -178,6 +199,9 @@ fun StudioHubScreen(
                 2 -> VeoVideoTab(viewModel)
                 3 -> LyriaMusicTab(viewModel)
                 4 -> GroundingTab(viewModel)
+                5 -> SmartHomeTab(viewModel)
+                6 -> KnowledgeVaultTab(viewModel)
+                7 -> MeetingScribeTab(viewModel)
             }
         }
     }
@@ -685,3 +709,344 @@ private fun GroundingTab(viewModel: ShivaiViewModel) {
         }
     }
 }
+
+// --- 6. SMART HOME IOT TAB ---
+@Composable
+private fun SmartHomeTab(viewModel: ShivaiViewModel) {
+    val devices by viewModel.smartDevices.collectAsState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text("Connected IoT Devices", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("${devices.size} devices online • Voice controllable via Shivai", color = NeonCyan, fontSize = 12.sp)
+            }
+        }
+
+        // Quick Scene Triggers
+        Text("Smart Scenes", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            FilterChip(
+                selected = false,
+                onClick = { viewModel.activateSmartScene("bedtime") },
+                label = { Text("Bedtime Mode (Lights Off, AC 24°C)") },
+                colors = FilterChipDefaults.filterChipColors(labelColor = NeonPurple)
+            )
+            FilterChip(
+                selected = false,
+                onClick = { viewModel.activateSmartScene("movie night") },
+                label = { Text("Movie Night (Dim 20%, TV On)") },
+                colors = FilterChipDefaults.filterChipColors(labelColor = NeonGold)
+            )
+        }
+
+        // Devices List
+        devices.forEach { dev ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(1.dp, if (dev.isPoweredOn) NeonCyan.copy(alpha = 0.5f) else CyberBorder, RoundedCornerShape(16.dp)),
+                colors = CardDefaults.cardColors(containerColor = CyberCard)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(if (dev.isPoweredOn) NeonCyan.copy(alpha = 0.15f) else CyberSurface),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                val icon = when (dev.type) {
+                                    "LIGHT" -> Icons.Default.Lightbulb
+                                    "AC" -> Icons.Default.AcUnit
+                                    "TV" -> Icons.Default.Tv
+                                    else -> Icons.Default.Power
+                                }
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = dev.name,
+                                    tint = if (dev.isPoweredOn) NeonCyan else TextSecondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Column {
+                                Text(dev.name, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text("${dev.room} • ${if (dev.isPoweredOn) "ON" else "OFF"}", color = TextSecondary, fontSize = 11.sp)
+                            }
+                        }
+
+                        Switch(
+                            checked = dev.isPoweredOn,
+                            onCheckedChange = { viewModel.toggleSmartDevice(dev.id, it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.Black,
+                                checkedTrackColor = NeonCyan
+                            )
+                        )
+                    }
+
+                    if (dev.isPoweredOn && (dev.type == "LIGHT" || dev.type == "AC")) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = if (dev.type == "LIGHT") "Brightness: ${dev.brightnessOrValue}%" else "Temp: ${dev.brightnessOrValue}°C",
+                                color = NeonCyan,
+                                fontSize = 12.sp
+                            )
+                        }
+                        Slider(
+                            value = dev.brightnessOrValue.toFloat(),
+                            onValueChange = { viewModel.setSmartDeviceValue(dev.id, it.toInt()) },
+                            valueRange = if (dev.type == "LIGHT") 10f..100f else 16f..30f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = NeonCyan,
+                                activeTrackColor = NeonCyan,
+                                inactiveTrackColor = CyberBorder
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- 7. KNOWLEDGE VAULT (RAG) TAB ---
+@Composable
+private fun KnowledgeVaultTab(viewModel: ShivaiViewModel) {
+    val documents by viewModel.documents.collectAsState()
+    var docTitle by remember { mutableStateOf("") }
+    var docContent by remember { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text("Private Knowledge Vault (Local RAG)", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text("Store your private documents, college notes, or policy details. Shivai will read and recall them whenever you ask.", color = NeonGold, fontSize = 12.sp)
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .border(1.dp, CyberBorder, RoundedCornerShape(16.dp)),
+            colors = CardDefaults.cardColors(containerColor = CyberCard)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Add New Knowledge Document", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+
+                OutlinedTextField(
+                    value = docTitle,
+                    onValueChange = { docTitle = it },
+                    label = { Text("Document Title (e.g. Health Insurance Policy)") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = NeonGold,
+                        unfocusedBorderColor = CyberBorder,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = docContent,
+                    onValueChange = { docContent = it },
+                    label = { Text("Document Content / Text Extract") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = NeonGold,
+                        unfocusedBorderColor = CyberBorder,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp),
+                    maxLines = 5
+                )
+
+                Button(
+                    onClick = {
+                        if (docTitle.isNotBlank() && docContent.isNotBlank()) {
+                            viewModel.addKnowledgeDocument(docTitle.trim(), docContent.trim())
+                            docTitle = ""
+                            docContent = ""
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonGold),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(imageVector = Icons.Default.UploadFile, contentDescription = null, tint = Color.Black)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Index into Knowledge Vault", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        Text("Indexed Documents (${documents.size})", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+
+        documents.forEach { doc ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .border(1.dp, CyberBorder, RoundedCornerShape(14.dp)),
+                colors = CardDefaults.cardColors(containerColor = CyberCard)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(doc.title, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(doc.content.take(120) + "...", color = TextSecondary, fontSize = 12.sp)
+                    }
+                    IconButton(onClick = { viewModel.deleteKnowledgeDocument(doc.id) }) {
+                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = NeonRed)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- 8. MEETING SCRIBE TAB ---
+@Composable
+private fun MeetingScribeTab(viewModel: ShivaiViewModel) {
+    val meetings by viewModel.meetingSummaries.collectAsState()
+    val isGenerating by viewModel.isGeneratingAsset.collectAsState()
+
+    var meetingTitle by remember { mutableStateOf("Design & Strategy Sync") }
+    var meetingTranscript by remember {
+        mutableStateOf("Rahul presented the quarterly metrics. Growth is up 35%. Priyansh will finalize the app architecture by Friday. We agreed to launch the beta test next Monday with 500 users.")
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text("AI Meeting & Lecture Scribe", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text("Generates executive summaries, key bullet points, and action items with Gemini 3.5 Flash.", color = NeonGreen, fontSize = 12.sp)
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .border(1.dp, CyberBorder, RoundedCornerShape(16.dp)),
+            colors = CardDefaults.cardColors(containerColor = CyberCard)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = meetingTitle,
+                    onValueChange = { meetingTitle = it },
+                    label = { Text("Meeting / Lecture Title") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = NeonGreen,
+                        unfocusedBorderColor = CyberBorder,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = meetingTranscript,
+                    onValueChange = { meetingTranscript = it },
+                    label = { Text("Spoken Transcript / Discussion Notes") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = NeonGreen,
+                        unfocusedBorderColor = CyberBorder,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(110.dp),
+                    maxLines = 6
+                )
+
+                Button(
+                    onClick = { viewModel.createMeetingSummary(meetingTitle, meetingTranscript) },
+                    enabled = !isGenerating && meetingTranscript.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonGreen),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (isGenerating) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.Black, strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Drafting Minutes...", color = Color.Black)
+                    } else {
+                        Text("Generate Structured Minutes", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        Text("Saved Meeting Minutes (${meetings.size})", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+
+        meetings.forEach { meeting ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(1.dp, NeonGreen.copy(alpha = 0.4f), RoundedCornerShape(16.dp)),
+                colors = CardDefaults.cardColors(containerColor = CyberCard)
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(meeting.title, color = NeonGreen, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        IconButton(onClick = { viewModel.deleteMeetingSummary(meeting.id) }) {
+                            Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = NeonRed)
+                        }
+                    }
+
+                    if (meeting.executiveSummary.isNotBlank()) {
+                        Text("EXECUTIVE SUMMARY", color = TextSecondary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        Text(meeting.executiveSummary, color = TextPrimary, fontSize = 13.sp)
+                    }
+
+                    if (meeting.actionItems.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("ACTION ITEMS", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        Text(meeting.actionItems, color = TextPrimary, fontSize = 13.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+

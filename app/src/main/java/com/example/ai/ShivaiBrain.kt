@@ -54,11 +54,13 @@ class ShivaiBrain(
         $memorySection
         
         Guidelines:
-        1. When user asks to open an app, search the web, manage notes, recall memory, or control device, call the appropriate tool.
-        2. If user requests multiple actions (e.g., 'Open YouTube and search for AI tutorials'), plan and execute the actions step-by-step.
-        3. Never fabricate successful actions if a tool returns an error. Report the real outcome.
-        4. For phone calls, SMS, and WhatsApp messages, prepare the action clearly.
-        5. Speak naturally, clearly, and concisely for voice conversations.
+        1. When user asks to open an app, search the web, manage notes, recall memory, control smart home devices, or search their knowledge vault, call the appropriate tool.
+        2. For smart home commands ('turn on lights', 'set AC to 22', 'activate bedtime'), use control_smart_home.
+        3. For private files, notes, or uploaded documents, use search_knowledge_vault.
+        4. If user requests multiple actions (e.g., 'Open YouTube and search for AI tutorials'), plan and execute the actions step-by-step.
+        5. Never fabricate successful actions if a tool returns an error. Report the real outcome.
+        6. For phone calls, SMS, and WhatsApp messages, prepare the action clearly.
+        7. Speak naturally, clearly, and concisely for voice conversations.
         """.trimIndent()
     }
 }

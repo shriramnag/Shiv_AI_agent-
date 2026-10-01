@@ -593,6 +593,93 @@ fun SettingsScreen(
                             )
                         )
                     }
+
+                    // Floating Cyber Bubble Toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Floating Cyber Bubble",
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = "Shows a floating futuristic orb above any app for quick voice access.",
+                                color = TextSecondary,
+                                fontSize = 11.sp
+                            )
+                        }
+
+                        val overlayActive by viewModel.floatingOverlayActive.collectAsState()
+                        Switch(
+                            checked = overlayActive,
+                            onCheckedChange = {
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                                    val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${context.packageName}"))
+                                    context.startActivity(intent)
+                                } else {
+                                    viewModel.toggleFloatingOverlay(context)
+                                }
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.Black,
+                                checkedTrackColor = NeonCyan
+                            )
+                        )
+                    }
+
+                    // Voiceprint & Biometric Lock Toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Voiceprint & Biometric Lock",
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = "Requires your biometric authentication for sensitive actions and private vault.",
+                                color = TextSecondary,
+                                fontSize = 11.sp
+                            )
+                        }
+
+                        val bioActive by viewModel.biometricSecurityActive.collectAsState()
+                        Switch(
+                            checked = bioActive,
+                            onCheckedChange = { viewModel.toggleBiometricSecurity() },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.Black,
+                                checkedTrackColor = NeonGreen
+                            )
+                        )
+                    }
+
+                    // Home Assistant / IoT endpoint configuration
+                    var haUrl by remember { mutableStateOf(viewModel.settingsPrefs.homeAssistantUrl) }
+                    OutlinedTextField(
+                        value = haUrl,
+                        onValueChange = {
+                            haUrl = it
+                            viewModel.settingsPrefs.homeAssistantUrl = it
+                        },
+                        label = { Text("Home Assistant URL (Local IP / Domain)") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NeonCyan,
+                            unfocusedBorderColor = CyberBorder,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }
