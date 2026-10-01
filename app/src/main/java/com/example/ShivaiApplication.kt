@@ -51,6 +51,8 @@ class ShivaiApplication : Application() {
         private set
     lateinit var codingStudioEngine: com.example.ai.CodingStudioEngine
         private set
+    lateinit var agiAgentEngine: com.example.ai.AgiAgentEngine
+        private set
 
     private val _pendingConfirmation = MutableStateFlow<ConfirmationRequest?>(null)
     val pendingConfirmation: StateFlow<ConfirmationRequest?> = _pendingConfirmation.asStateFlow()
@@ -82,7 +84,7 @@ class ShivaiApplication : Application() {
             },
             SmartHomeTool(database.smartDeviceDao()),
             KnowledgeBaseTool(database.documentDao()),
-            WebSearchTool(this)
+            WebSearchTool(this, database.searchCacheDao())
         )
 
         CoroutineScope(Dispatchers.IO).launch {
@@ -111,6 +113,13 @@ class ShivaiApplication : Application() {
 
         cyberShieldEngine = com.example.security.CyberShieldEngine(this)
         codingStudioEngine = com.example.ai.CodingStudioEngine(restClient)
+        agiAgentEngine = com.example.ai.AgiAgentEngine(
+            agiGoalDao = database.agiGoalDao(),
+            noteDao = database.noteDao(),
+            cyberShieldEngine = cyberShieldEngine,
+            webSearchTool = tools.filterIsInstance<WebSearchTool>().first(),
+            restClient = restClient
+        )
         offlineCognitiveEngine = com.example.ai.OfflineCognitiveEngine(
             context = this,
             noteDao = database.noteDao(),

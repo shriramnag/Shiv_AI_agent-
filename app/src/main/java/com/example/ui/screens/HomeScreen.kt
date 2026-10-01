@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -128,6 +129,9 @@ fun HomeScreen(
     }
 
     val quickActions = listOf(
+        QuickActionItem("AGI Mission", "Autonomous Mind", Icons.Default.Psychology, NeonCyan) {
+            onNavigateToStudio()
+        },
         QuickActionItem("Cyber Shield", "Phishing & Fraud Defense", Icons.Default.Security, NeonRed) {
             onNavigateToStudio()
         },
@@ -292,12 +296,13 @@ fun HomeScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
-                .clip(RoundedCornerShape(24.dp))
+                .widthIn(max = 500.dp)
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .clip(RoundedCornerShape(20.dp))
                 .border(
                     1.5.dp,
                     if (isVoiceRecognizing) NeonRed.copy(alpha = 0.8f) else NeonCyan.copy(alpha = 0.3f),
-                    RoundedCornerShape(24.dp)
+                    RoundedCornerShape(20.dp)
                 )
                 .clickable {
                     if (isVoiceRecognizing) {
@@ -311,49 +316,49 @@ fun HomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp),
+                    .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 HolographicVoiceVisualizer(
                     amplitude = effectiveAmplitude,
                     state = if (isVoiceRecognizing) ShivaiState.LISTENING else state,
-                    modifier = Modifier.size(200.dp)
+                    modifier = Modifier.size(145.dp)
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = if (isVoiceRecognizing) "LISTENING TO VOICE..." else statusText,
                     color = if (isVoiceRecognizing) NeonRed else TextPrimary,
-                    fontSize = 16.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
 
                 if (liveTranscript.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = "“$liveTranscript”",
                         color = NeonCyan,
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center
                     )
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = if (isVoiceRecognizing) "Speak your command now... tap to stop" else "Tap below or on Orb to start real-time speech input",
+                    text = if (isVoiceRecognizing) "Speak command now... tap to stop" else "Tap below or on Orb to speak",
                     color = if (isVoiceRecognizing) NeonGold else TextSecondary,
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Medium
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
                         onClick = {
@@ -366,9 +371,10 @@ fun HomeScreen(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isVoiceRecognizing) NeonRed else NeonCyan
                         ),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
-                            .weight(1f)
+                            .weight(1.2f)
+                            .height(46.dp)
                             .testTag("home_quick_voice_btn")
                     ) {
                         Icon(
@@ -379,34 +385,35 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            if (isVoiceRecognizing) "STOP LISTENING" else "REALTIME VOICE",
+                            if (isVoiceRecognizing) "STOP" else "VOICE SPEAK",
                             color = Color.Black,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            fontSize = 12.sp
                         )
                     }
 
                     Button(
                         onClick = onNavigateToCallingMode,
                         colors = ButtonDefaults.buttonColors(containerColor = CyberSurface),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .border(1.dp, NeonCyan.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                            .height(46.dp)
+                            .border(1.dp, NeonCyan.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                             .testTag("home_calling_mode_btn")
                     ) {
                         Text(
                             "LIVE CALL",
                             color = NeonCyan,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            fontSize = 12.sp
                         )
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Quick Actions Section
         Text(
@@ -495,20 +502,21 @@ fun HomeScreen(
 private fun QuickActionCard(item: QuickActionItem) {
     Card(
         modifier = Modifier
-            .width(140.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .border(1.dp, CyberBorder, RoundedCornerShape(16.dp))
+            .width(130.dp)
+            .height(115.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .border(1.dp, CyberBorder, RoundedCornerShape(14.dp))
             .clickable { item.action() },
         colors = CardDefaults.cardColors(containerColor = CyberCard)
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(8.dp))
                     .background(item.color.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -516,20 +524,22 @@ private fun QuickActionCard(item: QuickActionItem) {
                     imageVector = item.icon,
                     contentDescription = item.title,
                     tint = item.color,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
             Text(
                 text = item.title,
                 color = TextPrimary,
                 fontWeight = FontWeight.Bold,
-                fontSize = 13.sp
+                fontSize = 12.sp,
+                maxLines = 1
             )
             Text(
                 text = item.subtitle,
                 color = TextSecondary,
                 fontSize = 10.sp,
-                lineHeight = 13.sp
+                maxLines = 2,
+                lineHeight = 12.sp
             )
         }
     }

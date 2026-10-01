@@ -106,6 +106,7 @@ fun StudioHubScreen(
     val isGenerating by viewModel.isGeneratingAsset.collectAsState()
 
     val tabs = listOf(
+        "AGI Agent",
         "Cyber Shield",
         "Code Studio",
         "Language Brain",
@@ -197,17 +198,18 @@ fun StudioHubScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp)
         ) {
             when (selectedTab) {
-                0 -> com.example.ui.screens.studio.CyberShieldTab(viewModel)
-                1 -> com.example.ui.screens.studio.CodingStudioTab(viewModel)
-                2 -> com.example.ui.screens.studio.LanguageLexiconTab(viewModel)
-                3 -> VisionAiTab(viewModel)
-                4 -> ImageStudioTab(viewModel)
-                5 -> VeoVideoTab(viewModel)
-                6 -> LyriaMusicTab(viewModel)
-                7 -> GroundingTab(viewModel)
-                8 -> SmartHomeTab(viewModel)
-                9 -> KnowledgeVaultTab(viewModel)
-                10 -> MeetingScribeTab(viewModel)
+                0 -> com.example.ui.screens.studio.AgiAgentTab(viewModel)
+                1 -> com.example.ui.screens.studio.CyberShieldTab(viewModel)
+                2 -> com.example.ui.screens.studio.CodingStudioTab(viewModel)
+                3 -> com.example.ui.screens.studio.LanguageLexiconTab(viewModel)
+                4 -> VisionAiTab(viewModel)
+                5 -> ImageStudioTab(viewModel)
+                6 -> VeoVideoTab(viewModel)
+                7 -> LyriaMusicTab(viewModel)
+                8 -> GroundingTab(viewModel)
+                9 -> SmartHomeTab(viewModel)
+                10 -> KnowledgeVaultTab(viewModel)
+                11 -> MeetingScribeTab(viewModel)
             }
         }
     }

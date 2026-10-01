@@ -118,7 +118,7 @@ class SettingsPreferences(context: Context) {
         set(value) = prefs.edit().putString(KEY_PERSONALITY, value).apply()
 
     var wakeWordEnabled: Boolean
-        get() = prefs.getBoolean(KEY_WAKE_WORD_ENABLED, true)
+        get() = prefs.getBoolean(KEY_WAKE_WORD_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_WAKE_WORD_ENABLED, value).apply()
 
     var wakePhrase: String

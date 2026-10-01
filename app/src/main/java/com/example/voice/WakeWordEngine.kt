@@ -1,11 +1,14 @@
 package com.example.voice
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -32,6 +35,11 @@ class WakeWordEngine(
     val isEngineActive: StateFlow<Boolean> = _isEngineActive.asStateFlow()
 
     fun startListening() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            isListening = false
+            _isEngineActive.value = false
+            return
+        }
         if (!SpeechRecognizer.isRecognitionAvailable(context)) return
         if (isListening) return
 
@@ -64,8 +72,12 @@ class WakeWordEngine(
         speechRecognizer = null
     }
 
-    private fun restartListening(delayMs: Long = 300) {
+    private fun restartListening(delayMs: Long = 1000) {
         if (!isListening) return
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            stopListening()
+            return
+        }
         restartJob?.cancel()
         restartJob = scope.launch {
             delay(delayMs)
@@ -75,7 +87,7 @@ class WakeWordEngine(
                     val intent = createRecognizerIntent()
                     speechRecognizer?.startListening(intent)
                 } catch (e: Exception) {
-                    // Retry with new instance
+                    // Retry with new instance safely
                     try {
                         speechRecognizer?.destroy()
                         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
@@ -83,7 +95,8 @@ class WakeWordEngine(
                         }
                         speechRecognizer?.startListening(createRecognizerIntent())
                     } catch (ex: Exception) {
-                        // Ignored
+                        isListening = false
+                        _isEngineActive.value = false
                     }
                 }
             }
@@ -107,8 +120,13 @@ class WakeWordEngine(
         override fun onEndOfSpeech() {}
 
         override fun onError(error: Int) {
-            // Error codes like NO_MATCH or SPEECH_TIMEOUT are normal during passive wake-word monitoring
-            restartListening(500)
+            if (error == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) {
+                stopListening()
+                return
+            }
+            if (isListening) {
+                restartListening(1200)
+            }
         }
 
         override fun onResults(results: Bundle?) {

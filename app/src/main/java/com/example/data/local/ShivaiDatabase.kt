@@ -13,9 +13,11 @@ import androidx.room.RoomDatabase
         DocumentEntity::class,
         MeetingScribeEntity::class,
         SmartDeviceEntity::class,
-        LanguageLexiconEntity::class
+        LanguageLexiconEntity::class,
+        SearchCacheEntity::class,
+        AgiGoalEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class ShivaiDatabase : RoomDatabase() {
@@ -26,6 +28,8 @@ abstract class ShivaiDatabase : RoomDatabase() {
     abstract fun meetingScribeDao(): MeetingScribeDao
     abstract fun smartDeviceDao(): SmartDeviceDao
     abstract fun languageLexiconDao(): LanguageLexiconDao
+    abstract fun searchCacheDao(): SearchCacheDao
+    abstract fun agiGoalDao(): AgiGoalDao
 
     companion object {
         @Volatile
