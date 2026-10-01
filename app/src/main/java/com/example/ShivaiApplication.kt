@@ -45,6 +45,12 @@ class ShivaiApplication : Application() {
         private set
     lateinit var brain: ShivaiBrain
         private set
+    lateinit var cyberShieldEngine: com.example.security.CyberShieldEngine
+        private set
+    lateinit var offlineCognitiveEngine: com.example.ai.OfflineCognitiveEngine
+        private set
+    lateinit var codingStudioEngine: com.example.ai.CodingStudioEngine
+        private set
 
     private val _pendingConfirmation = MutableStateFlow<ConfirmationRequest?>(null)
     val pendingConfirmation: StateFlow<ConfirmationRequest?> = _pendingConfirmation.asStateFlow()
@@ -103,9 +109,22 @@ class ShivaiApplication : Application() {
             onError = {}
         )
 
+        cyberShieldEngine = com.example.security.CyberShieldEngine(this)
+        codingStudioEngine = com.example.ai.CodingStudioEngine(restClient)
+        offlineCognitiveEngine = com.example.ai.OfflineCognitiveEngine(
+            context = this,
+            noteDao = database.noteDao(),
+            memoryDao = database.memoryDao(),
+            lexiconDao = database.languageLexiconDao(),
+            deviceControlTool = tools.filterIsInstance<DeviceControlTool>().first(),
+            appControlTool = tools.filterIsInstance<AppControlTool>().first(),
+            cyberShieldEngine = cyberShieldEngine
+        )
+
         brain = ShivaiBrain(
             settingsPrefs = settingsPrefs,
             memoryDao = database.memoryDao(),
+            lexiconDao = database.languageLexiconDao(),
             toolRegistry = toolRegistry,
             liveClient = liveClient,
             restClient = restClient

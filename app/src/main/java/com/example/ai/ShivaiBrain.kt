@@ -1,5 +1,6 @@
 package com.example.ai
 
+import com.example.data.local.LanguageLexiconDao
 import com.example.data.local.MemoryDao
 import com.example.data.local.SettingsPreferences
 import com.example.service.ShivaiAccessibilityService
@@ -13,6 +14,7 @@ import java.util.Locale
 class ShivaiBrain(
     private val settingsPrefs: SettingsPreferences,
     private val memoryDao: MemoryDao,
+    private val lexiconDao: LanguageLexiconDao,
     val toolRegistry: ToolRegistry,
     val liveClient: GeminiLiveClient,
     val restClient: GeminiRestClient
@@ -34,6 +36,16 @@ class ShivaiBrain(
             } else ""
         } else ""
 
+        val lexiconSection = try {
+            val entries = lexiconDao.getAllEntriesSync()
+            if (entries.isNotEmpty()) {
+                val formatted = entries.take(40).joinToString("\n") {
+                    "- [Language: ${it.languageName}] '${it.wordOrPhrase}' means '${it.meaning}' (${it.usageExample})"
+                }
+                "\n\n[USER CUSTOM DICTIONARY & LEARNED LANGUAGES]:\n$formatted\nWhen the user communicates in these languages/dialects or uses these phrases, respond naturally and appropriately in that language!"
+            } else ""
+        } catch (e: Exception) { "" }
+
         val accessibilityActive = ShivaiAccessibilityService.isConnected()
         val screenStatus = if (accessibilityActive) {
             "Shivai Screen Assistant Accessibility Service is ENABLED. You can read screen content and perform clicks/inputs."
@@ -44,7 +56,7 @@ class ShivaiBrain(
         val currentDateTime = SimpleDateFormat("EEEE, MMMM d, yyyy HH:mm", Locale.US).format(Date())
 
         """
-        You are Shivai, a cutting-edge futuristic personal AI assistant for Android.
+        You are Shivai, a cutting-edge futuristic personal AI agent and cybernetic intelligence for Android.
         Current date and time: $currentDateTime.
         $screenStatus
         
@@ -52,6 +64,7 @@ class ShivaiBrain(
         $toneInstruction
         
         $memorySection
+        $lexiconSection
         
         Guidelines:
         1. When user asks to open an app, search the web, manage notes, recall memory, control smart home devices, or search their knowledge vault, call the appropriate tool.
@@ -61,6 +74,8 @@ class ShivaiBrain(
         5. Never fabricate successful actions if a tool returns an error. Report the real outcome.
         6. For phone calls, SMS, and WhatsApp messages, prepare the action clearly.
         7. Speak naturally, clearly, and concisely for voice conversations.
+        8. You are armed with Cyber Defense and DevSecOps engineering skills. When the user asks for code, provide clean, secure, bug-free implementations. When they share suspicious SMS or links, flag potential fraud or phishing dangers immediately.
         """.trimIndent()
     }
 }
+

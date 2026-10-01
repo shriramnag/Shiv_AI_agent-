@@ -32,7 +32,9 @@ import androidx.compose.material.icons.automirrored.filled.NoteAdd
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.FlashlightOn
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Search
@@ -126,6 +128,15 @@ fun HomeScreen(
     }
 
     val quickActions = listOf(
+        QuickActionItem("Cyber Shield", "Phishing & Fraud Defense", Icons.Default.Security, NeonRed) {
+            onNavigateToStudio()
+        },
+        QuickActionItem("Code Studio", "Autonomous DevSecOps", Icons.Default.Code, NeonGreen) {
+            onNavigateToStudio()
+        },
+        QuickActionItem("Languages", "Adaptive Lexicon Brain", Icons.Default.Language, NeonGold) {
+            onNavigateToStudio()
+        },
         QuickActionItem("AI Studio", "Vision, Video, Music", Icons.Default.AutoAwesome, NeonCyan) {
             onNavigateToStudio()
         },

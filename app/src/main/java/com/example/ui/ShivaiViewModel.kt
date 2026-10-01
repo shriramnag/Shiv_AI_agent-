@@ -11,8 +11,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.ShivaiApplication
 import com.example.ai.LiveConnectionState
 import com.example.data.local.ChatMessageEntity
+import com.example.data.local.LanguageLexiconEntity
 import com.example.data.local.MemoryEntity
 import com.example.data.local.NoteEntity
+import com.example.security.DeviceSecurityReport
+import com.example.security.FraudMessageResult
+import com.example.security.UrlScanResult
 import com.example.service.ShivaiAccessibilityService
 import com.example.voice.AndroidTtsFallback
 import com.example.voice.AudioRecorderManager
@@ -132,6 +136,28 @@ class ShivaiViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _groundingResult = MutableStateFlow<Pair<String, List<String>>?>(null)
     val groundingResult: StateFlow<Pair<String, List<String>>?> = _groundingResult.asStateFlow()
+
+    // Multilingual Adaptive Lexicon
+    val languageLexicon: StateFlow<List<LanguageLexiconEntity>> = database.languageLexiconDao()
+        .getAllLexiconEntries()
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    // Cyber Security Shield State
+    private val _deviceSecurityReport = MutableStateFlow<DeviceSecurityReport?>(null)
+    val deviceSecurityReport: StateFlow<DeviceSecurityReport?> = _deviceSecurityReport.asStateFlow()
+
+    private val _lastUrlScan = MutableStateFlow<UrlScanResult?>(null)
+    val lastUrlScan: StateFlow<UrlScanResult?> = _lastUrlScan.asStateFlow()
+
+    private val _lastFraudScan = MutableStateFlow<FraudMessageResult?>(null)
+    val lastFraudScan: StateFlow<FraudMessageResult?> = _lastFraudScan.asStateFlow()
+
+    // Coding Studio State
+    private val _codeStudioOutput = MutableStateFlow<String?>(null)
+    val codeStudioOutput: StateFlow<String?> = _codeStudioOutput.asStateFlow()
+
+    private val _isCodeStudioLoading = MutableStateFlow(false)
+    val isCodeStudioLoading: StateFlow<Boolean> = _isCodeStudioLoading.asStateFlow()
 
     // Voice & Audio Subsystems
     private var audioRecorder: AudioRecorderManager? = null
@@ -361,8 +387,25 @@ class ShivaiViewModel(application: Application) : AndroidViewModel(application) 
     fun sendTextMessage(text: String) {
         if (text.isBlank()) return
         val apiKey = settingsPrefs.getEffectiveApiKey()
-        if (apiKey.isBlank()) {
-            _errorMessage.value = "Gemini API key is required. Configure it in Settings."
+        if (apiKey.isBlank() || !_networkAvailable.value) {
+            viewModelScope.launch(Dispatchers.IO) {
+                val userMsg = ChatMessageEntity(role = "user", content = text)
+                database.chatMessageDao().insertMessage(userMsg)
+
+                _state.value = ShivaiState.THINKING
+                _statusText.value = "Shivai (Offline Engine)..."
+
+                val offlineResponse = app.offlineCognitiveEngine.processOfflineCommand(text)
+                val aiMsg = ChatMessageEntity(
+                    role = "model",
+                    content = "⚡ [Offline Cognitive Engine]\n${offlineResponse.replyText}",
+                    toolCallName = offlineResponse.actionExecuted
+                )
+                database.chatMessageDao().insertMessage(aiMsg)
+
+                _state.value = ShivaiState.STANDBY
+                _statusText.value = "Shivai Standby (Offline)"
+            }
             return
         }
 
@@ -418,8 +461,26 @@ class ShivaiViewModel(application: Application) : AndroidViewModel(application) 
     fun sendVoiceCommand(text: String) {
         if (text.isBlank()) return
         val apiKey = settingsPrefs.getEffectiveApiKey()
-        if (apiKey.isBlank()) {
-            _errorMessage.value = "Gemini API key is required. Configure it in Settings."
+        if (apiKey.isBlank() || !_networkAvailable.value) {
+            viewModelScope.launch(Dispatchers.IO) {
+                val userMsg = ChatMessageEntity(role = "user", content = text)
+                database.chatMessageDao().insertMessage(userMsg)
+
+                _state.value = ShivaiState.THINKING
+                _statusText.value = "Shivai (Offline Engine)..."
+
+                val offlineResponse = app.offlineCognitiveEngine.processOfflineCommand(text)
+                val aiMsg = ChatMessageEntity(
+                    role = "model",
+                    content = "⚡ [Offline Cognitive Engine]\n${offlineResponse.replyText}",
+                    toolCallName = offlineResponse.actionExecuted
+                )
+                database.chatMessageDao().insertMessage(aiMsg)
+
+                _state.value = ShivaiState.STANDBY
+                _statusText.value = "Shivai Standby (Offline)"
+                speakTextResponse(offlineResponse.replyText)
+            }
             return
         }
 
@@ -578,6 +639,88 @@ class ShivaiViewModel(application: Application) : AndroidViewModel(application) 
             _state.value = ShivaiState.STANDBY
             _statusText.value = "Shivai Standby"
         }
+    }
+
+    // --- MULTILINGUAL ADAPTIVE LEXICON ---
+
+    fun addLanguageLexicon(language: String, word: String, meaning: String, example: String = "") {
+        viewModelScope.launch(Dispatchers.IO) {
+            database.languageLexiconDao().insertLexicon(
+                LanguageLexiconEntity(
+                    languageName = language.trim(),
+                    wordOrPhrase = word.trim(),
+                    meaning = meaning.trim(),
+                    usageExample = example.trim()
+                )
+            )
+        }
+    }
+
+    fun deleteLanguageLexicon(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            database.languageLexiconDao().deleteLexiconById(id)
+        }
+    }
+
+    // --- CYBER SECURITY SHIELD & FRAUD DEFENSE ---
+
+    fun scanUrl(url: String) {
+        viewModelScope.launch(Dispatchers.Default) {
+            val result = app.cyberShieldEngine.scanUrl(url)
+            _lastUrlScan.value = result
+        }
+    }
+
+    fun scanMessageForFraud(text: String) {
+        viewModelScope.launch(Dispatchers.Default) {
+            val result = app.cyberShieldEngine.analyzeMessageForFraud(text)
+            _lastFraudScan.value = result
+        }
+    }
+
+    fun runDeviceSecurityAudit() {
+        viewModelScope.launch(Dispatchers.Default) {
+            val report = app.cyberShieldEngine.auditDeviceSecurity()
+            _deviceSecurityReport.value = report
+        }
+    }
+
+    // --- AUTONOMOUS CODING STUDIO & DEVSECOPS ---
+
+    fun generateCode(prompt: String, language: String) {
+        _isCodeStudioLoading.value = true
+        _codeStudioOutput.value = null
+        viewModelScope.launch(Dispatchers.IO) {
+            val apiKey = settingsPrefs.getEffectiveApiKey()
+            val (success, result) = app.codingStudioEngine.generateCode(
+                apiKey = apiKey,
+                model = settingsPrefs.textModel,
+                prompt = prompt,
+                targetLanguage = language
+            )
+            _isCodeStudioLoading.value = false
+            _codeStudioOutput.value = result
+        }
+    }
+
+    fun inspectAndFixCode(code: String, issue: String = "") {
+        _isCodeStudioLoading.value = true
+        _codeStudioOutput.value = null
+        viewModelScope.launch(Dispatchers.IO) {
+            val apiKey = settingsPrefs.getEffectiveApiKey()
+            val (success, result) = app.codingStudioEngine.inspectAndFixCode(
+                apiKey = apiKey,
+                model = settingsPrefs.textModel,
+                codeSnippet = code,
+                issueDescription = issue
+            )
+            _isCodeStudioLoading.value = false
+            _codeStudioOutput.value = result
+        }
+    }
+
+    fun clearCodeStudioOutput() {
+        _codeStudioOutput.value = null
     }
 
     // --- ADVANCED GENERATIVE & STUDIO ACTIONS ---
