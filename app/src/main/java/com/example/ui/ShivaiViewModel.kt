@@ -391,6 +391,61 @@ class ShivaiViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun sendVoiceCommand(text: String) {
+        if (text.isBlank()) return
+        val apiKey = settingsPrefs.getEffectiveApiKey()
+        if (apiKey.isBlank()) {
+            _errorMessage.value = "Gemini API key is required. Configure it in Settings."
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val userMsg = ChatMessageEntity(role = "user", content = text)
+            database.chatMessageDao().insertMessage(userMsg)
+
+            _state.value = ShivaiState.THINKING
+            _statusText.value = "Shivai is thinking..."
+
+            val systemPrompt = brain.buildSystemPrompt()
+            val history = database.chatMessageDao().getRecentMessages(6).map { it.role to it.content }
+
+            val result = restClient.generateContentWithTools(
+                apiKey = apiKey,
+                model = settingsPrefs.textModel,
+                systemInstruction = systemPrompt,
+                conversationHistory = history,
+                userPrompt = text
+            )
+
+            if (result.success) {
+                var toolName: String? = null
+                var toolArgs: String? = null
+                var toolResultStr: String? = null
+
+                if (result.toolExecutions.isNotEmpty()) {
+                    val first = result.toolExecutions.first()
+                    toolName = first.first
+                    toolResultStr = first.second.message
+                }
+
+                val aiMsg = ChatMessageEntity(
+                    role = "model",
+                    content = result.text,
+                    toolCallName = toolName,
+                    toolCallArgs = toolArgs,
+                    toolResult = toolResultStr
+                )
+                database.chatMessageDao().insertMessage(aiMsg)
+
+                speakTextResponse(result.text)
+            } else {
+                _state.value = ShivaiState.ERROR
+                _errorMessage.value = result.errorMessage ?: "Failed to generate response."
+                _statusText.value = "Error occurred"
+            }
+        }
+    }
+
     fun speakTextResponse(text: String) {
         if (_isSpeakerMuted.value) return
         _state.value = ShivaiState.SPEAKING

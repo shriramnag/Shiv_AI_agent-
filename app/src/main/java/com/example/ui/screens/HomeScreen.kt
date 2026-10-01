@@ -1,7 +1,12 @@
 package com.example.ui.screens
 
+import android.app.Activity
 import android.content.Intent
 import android.provider.Settings
+import android.speech.RecognizerIntent
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -100,6 +105,18 @@ fun HomeScreen(
     val networkAvailable by viewModel.networkAvailable.collectAsState()
     val memories by viewModel.memories.collectAsState()
     val notes by viewModel.notes.collectAsState()
+
+    val speechLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val spokenText = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+            if (!spokenText.isNullOrBlank()) {
+                viewModel.sendVoiceCommand(spokenText)
+                onNavigateToChat()
+            }
+        }
+    }
 
     val quickActions = listOf(
         QuickActionItem("AI Studio", "Vision, Video, Music", Icons.Default.AutoAwesome, NeonCyan) {
@@ -287,7 +304,7 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "Tap here to initiate Hands-Free Calling Mode",
+                    text = "Tap below for Instant Voice Command or Hands-Free Mode",
                     color = NeonCyan,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
@@ -295,27 +312,59 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Button(
-                    onClick = onNavigateToCallingMode,
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("home_calling_mode_btn")
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Mic,
-                        contentDescription = null,
-                        tint = Color.Black,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "ENTER CALLING MODE",
-                        color = Color.Black,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
+                    Button(
+                        onClick = {
+                            val speechIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to Shivai...")
+                            }
+                            try {
+                                speechLauncher.launch(speechIntent)
+                            } catch (e: Exception) {
+                                onNavigateToCallingMode()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("home_quick_voice_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = null,
+                            tint = Color.Black,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            "VOICE",
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+
+                    Button(
+                        onClick = onNavigateToCallingMode,
+                        colors = ButtonDefaults.buttonColors(containerColor = CyberSurface),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .border(1.dp, NeonCyan.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                            .testTag("home_calling_mode_btn")
+                    ) {
+                        Text(
+                            "LIVE CALL",
+                            color = NeonCyan,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
                 }
             }
         }

@@ -49,13 +49,13 @@ class GeminiLiveClient(
     private val _lastErrorMessage = MutableStateFlow<String?>(null)
     val lastErrorMessage: StateFlow<String?> = _lastErrorMessage.asStateFlow()
 
-    private var currentModel = "models/gemini-3.8-live"
+    private var currentModel = "models/gemini-2.5-flash-native-audio-preview-12-2025"
     private var currentVoice = "Aoede"
     private var currentSystemPrompt = ""
 
     fun connect(
         apiKey: String,
-        modelName: String = "gemini-3.8-live",
+        modelName: String = "gemini-2.5-flash-native-audio-preview-12-2025",
         voiceName: String = "Aoede",
         systemPrompt: String = ""
     ) {
@@ -70,7 +70,11 @@ class GeminiLiveClient(
         _connectionState.value = LiveConnectionState.CONNECTING
         _lastErrorMessage.value = null
 
-        currentModel = if (modelName.startsWith("models/")) modelName else "models/$modelName"
+        val resolvedModel = if (modelName.contains("3.8") || modelName.isBlank()) {
+            "gemini-2.5-flash-native-audio-preview-12-2025"
+        } else modelName
+
+        currentModel = if (resolvedModel.startsWith("models/")) resolvedModel else "models/$resolvedModel"
         currentVoice = voiceName
         currentSystemPrompt = systemPrompt
 

@@ -26,8 +26,8 @@ class SettingsPreferences(context: Context) {
         private const val KEY_BIOMETRIC_SECURITY = "biometric_security_enabled"
         private const val KEY_HOME_ASSISTANT_URL = "home_assistant_url"
 
-        const val DEFAULT_LIVE_MODEL = "gemini-3.8-live"
-        const val DEFAULT_TEXT_MODEL = "gemini-3.5-flash"
+        const val DEFAULT_LIVE_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
+        const val DEFAULT_TEXT_MODEL = "gemini-2.5-flash"
         const val DEFAULT_VOICE_NAME = "Aoede"
     }
 
@@ -73,11 +73,17 @@ class SettingsPreferences(context: Context) {
     }
 
     var liveModel: String
-        get() = prefs.getString(KEY_LIVE_MODEL, DEFAULT_LIVE_MODEL) ?: DEFAULT_LIVE_MODEL
+        get() {
+            val m = prefs.getString(KEY_LIVE_MODEL, DEFAULT_LIVE_MODEL) ?: DEFAULT_LIVE_MODEL
+            return if (m.contains("3.8")) DEFAULT_LIVE_MODEL else m
+        }
         set(value) = prefs.edit().putString(KEY_LIVE_MODEL, value).apply()
 
     var textModel: String
-        get() = prefs.getString(KEY_TEXT_MODEL, DEFAULT_TEXT_MODEL) ?: DEFAULT_TEXT_MODEL
+        get() {
+            val m = prefs.getString(KEY_TEXT_MODEL, DEFAULT_TEXT_MODEL) ?: DEFAULT_TEXT_MODEL
+            return if (m.contains("3.5")) DEFAULT_TEXT_MODEL else m
+        }
         set(value) = prefs.edit().putString(KEY_TEXT_MODEL, value).apply()
 
     var voiceName: String

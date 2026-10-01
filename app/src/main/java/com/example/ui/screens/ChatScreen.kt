@@ -1,9 +1,14 @@
 package com.example.ui.screens
 
+import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.speech.RecognizerIntent
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Handyman
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -73,6 +79,17 @@ fun ChatScreen(
     val state by viewModel.state.collectAsState()
     val listState = rememberLazyListState()
     var inputText by remember { mutableStateOf("") }
+
+    val speechRecognizerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val spokenText = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+            if (!spokenText.isNullOrBlank()) {
+                viewModel.sendVoiceCommand(spokenText)
+            }
+        }
+    }
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
@@ -224,6 +241,32 @@ fun ChatScreen(
                 shape = RoundedCornerShape(20.dp),
                 maxLines = 4
             )
+
+            IconButton(
+                onClick = {
+                    val speechIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to Shivai...")
+                    }
+                    try {
+                        speechRecognizerLauncher.launch(speechIntent)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Voice input: please speak in Calling Mode or type", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(CyberCard)
+                    .border(1.dp, NeonCyan.copy(alpha = 0.6f), CircleShape)
+                    .testTag("chat_voice_mic_btn")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = "Voice Command",
+                    tint = NeonCyan
+                )
+            }
 
             IconButton(
                 onClick = {

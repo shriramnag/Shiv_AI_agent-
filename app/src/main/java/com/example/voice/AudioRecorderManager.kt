@@ -23,9 +23,9 @@ class AudioRecorderManager(
 ) {
     companion object {
         const val SAMPLE_RATE = 16000
-        private const val SILENCE_THRESHOLD_MS = 1400L // End-of-speech silence window
-        private const val SPEECH_AMPLITUDE_THRESHOLD = 0.12f
-        private const val BARGE_IN_AMPLITUDE_THRESHOLD = 0.22f
+        private const val SILENCE_THRESHOLD_MS = 500L // Fast end-of-speech silence detection (500ms)
+        private const val SPEECH_AMPLITUDE_THRESHOLD = 0.035f // Highly sensitive for emulator & phone mic
+        private const val BARGE_IN_AMPLITUDE_THRESHOLD = 0.12f
     }
 
     private var audioRecord: AudioRecord? = null
@@ -59,7 +59,7 @@ class AudioRecorderManager(
 
         try {
             audioRecord = AudioRecord(
-                MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+                MediaRecorder.AudioSource.MIC,
                 SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,

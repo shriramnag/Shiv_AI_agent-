@@ -1,5 +1,15 @@
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
 
+val rootEnv = rootProject.file(".env")
+val rootEnvExample = rootProject.file(".env.example")
+if (!rootEnv.exists()) {
+  if (rootEnvExample.exists()) {
+    rootEnvExample.copyTo(rootEnv, overwrite = true)
+  } else {
+    rootEnv.writeText("GEMINI_API_KEY=MY_GEMINI_API_KEY\n")
+  }
+}
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
