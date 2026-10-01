@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Handyman
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -67,6 +68,7 @@ import com.example.ui.theme.CyberSurface
 import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonGold
 import com.example.ui.theme.NeonPurple
+import com.example.ui.theme.NeonRed
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 
@@ -77,17 +79,14 @@ fun ChatScreen(
     val context = LocalContext.current
     val messages by viewModel.chatMessages.collectAsState()
     val state by viewModel.state.collectAsState()
+    val isVoiceRecognizing by viewModel.isVoiceRecognizing.collectAsState()
+    val liveTranscript by viewModel.liveTranscript.collectAsState()
     val listState = rememberLazyListState()
     var inputText by remember { mutableStateOf("") }
 
-    val speechRecognizerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val spokenText = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-            if (!spokenText.isNullOrBlank()) {
-                viewModel.sendVoiceCommand(spokenText)
-            }
+    LaunchedEffect(liveTranscript) {
+        if (isVoiceRecognizing && liveTranscript.isNotBlank()) {
+            inputText = liveTranscript
         }
     }
 
@@ -244,27 +243,27 @@ fun ChatScreen(
 
             IconButton(
                 onClick = {
-                    val speechIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                        putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to Shivai...")
-                    }
-                    try {
-                        speechRecognizerLauncher.launch(speechIntent)
-                    } catch (e: Exception) {
-                        Toast.makeText(context, "Voice input: please speak in Calling Mode or type", Toast.LENGTH_SHORT).show()
+                    if (isVoiceRecognizing) {
+                        viewModel.stopRealtimeSpeech()
+                    } else {
+                        viewModel.startRealtimeSpeech(preferHindi = true)
                     }
                 },
                 modifier = Modifier
                     .size(46.dp)
                     .clip(CircleShape)
-                    .background(CyberCard)
-                    .border(1.dp, NeonCyan.copy(alpha = 0.6f), CircleShape)
+                    .background(if (isVoiceRecognizing) NeonRed.copy(alpha = 0.25f) else CyberCard)
+                    .border(
+                        1.5.dp,
+                        if (isVoiceRecognizing) NeonRed else NeonCyan.copy(alpha = 0.6f),
+                        CircleShape
+                    )
                     .testTag("chat_voice_mic_btn")
             ) {
                 Icon(
-                    imageVector = Icons.Default.Mic,
-                    contentDescription = "Voice Command",
-                    tint = NeonCyan
+                    imageVector = if (isVoiceRecognizing) Icons.Default.Stop else Icons.Default.Mic,
+                    contentDescription = if (isVoiceRecognizing) "Stop Realtime Speech" else "Realtime Voice Input",
+                    tint = if (isVoiceRecognizing) NeonRed else NeonCyan
                 )
             }
 

@@ -39,7 +39,9 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -105,6 +107,11 @@ fun HomeScreen(
     val networkAvailable by viewModel.networkAvailable.collectAsState()
     val memories by viewModel.memories.collectAsState()
     val notes by viewModel.notes.collectAsState()
+    val isVoiceRecognizing by viewModel.isVoiceRecognizing.collectAsState()
+    val speechLiveRms by viewModel.speechLiveRms.collectAsState()
+    val liveTranscript by viewModel.liveTranscript.collectAsState()
+
+    val effectiveAmplitude = if (isVoiceRecognizing) speechLiveRms else amplitude
 
     val speechLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -270,14 +277,24 @@ fun HomeScreen(
             }
         }
 
-        // Central Hologram Orb & Calling Mode Launch Card
+        // Central Hologram Orb & Realtime Voice Input Card
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 8.dp)
                 .clip(RoundedCornerShape(24.dp))
-                .border(1.dp, NeonCyan.copy(alpha = 0.3f), RoundedCornerShape(24.dp))
-                .clickable { onNavigateToCallingMode() },
+                .border(
+                    1.5.dp,
+                    if (isVoiceRecognizing) NeonRed.copy(alpha = 0.8f) else NeonCyan.copy(alpha = 0.3f),
+                    RoundedCornerShape(24.dp)
+                )
+                .clickable {
+                    if (isVoiceRecognizing) {
+                        viewModel.stopRealtimeSpeech()
+                    } else {
+                        viewModel.startRealtimeSpeech(preferHindi = true)
+                    }
+                },
             colors = CardDefaults.cardColors(containerColor = CyberCard)
         ) {
             Column(
@@ -287,25 +304,36 @@ fun HomeScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 HolographicVoiceVisualizer(
-                    amplitude = amplitude,
-                    state = state,
+                    amplitude = effectiveAmplitude,
+                    state = if (isVoiceRecognizing) ShivaiState.LISTENING else state,
                     modifier = Modifier.size(200.dp)
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = statusText,
-                    color = TextPrimary,
+                    text = if (isVoiceRecognizing) "LISTENING TO VOICE..." else statusText,
+                    color = if (isVoiceRecognizing) NeonRed else TextPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
 
+                if (liveTranscript.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "“$liveTranscript”",
+                        color = NeonCyan,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "Tap below for Instant Voice Command or Hands-Free Mode",
-                    color = NeonCyan,
+                    text = if (isVoiceRecognizing) "Speak your command now... tap to stop" else "Tap below or on Orb to start real-time speech input",
+                    color = if (isVoiceRecognizing) NeonGold else TextSecondary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -318,31 +346,29 @@ fun HomeScreen(
                 ) {
                     Button(
                         onClick = {
-                            val speechIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to Shivai...")
-                            }
-                            try {
-                                speechLauncher.launch(speechIntent)
-                            } catch (e: Exception) {
-                                onNavigateToCallingMode()
+                            if (isVoiceRecognizing) {
+                                viewModel.stopRealtimeSpeech()
+                            } else {
+                                viewModel.startRealtimeSpeech(preferHindi = true)
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isVoiceRecognizing) NeonRed else NeonCyan
+                        ),
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier
                             .weight(1f)
                             .testTag("home_quick_voice_btn")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Mic,
+                            imageVector = if (isVoiceRecognizing) Icons.Default.Stop else Icons.Default.Mic,
                             contentDescription = null,
                             tint = Color.Black,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            "VOICE",
+                            if (isVoiceRecognizing) "STOP LISTENING" else "REALTIME VOICE",
                             color = Color.Black,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp

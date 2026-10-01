@@ -16,7 +16,9 @@ import com.example.data.local.NoteEntity
 import com.example.service.ShivaiAccessibilityService
 import com.example.voice.AndroidTtsFallback
 import com.example.voice.AudioRecorderManager
+import com.example.voice.RealtimeSpeechRecognizer
 import com.example.voice.WakeWordEngine
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -135,6 +137,13 @@ class ShivaiViewModel(application: Application) : AndroidViewModel(application) 
     private var audioRecorder: AudioRecorderManager? = null
     private var wakeWordEngine: WakeWordEngine? = null
     private var ttsFallback: AndroidTtsFallback? = null
+    private var realtimeSpeechRecognizer: RealtimeSpeechRecognizer? = null
+
+    val isVoiceRecognizing: StateFlow<Boolean>
+        get() = realtimeSpeechRecognizer?.isListening ?: MutableStateFlow(false)
+
+    val speechLiveRms: StateFlow<Float>
+        get() = realtimeSpeechRecognizer?.liveRms ?: MutableStateFlow(0f)
 
     private var thinkTimeoutJob: Job? = null
     private var callingModeJob: Job? = null
@@ -213,6 +222,21 @@ class ShivaiViewModel(application: Application) : AndroidViewModel(application) 
         if (settingsPrefs.wakeWordEnabled && !_isCallingModeActive.value) {
             wakeWordEngine?.startListening()
         }
+
+        realtimeSpeechRecognizer = RealtimeSpeechRecognizer(
+            context = app,
+            onFinalResult = { recognizedText ->
+                _liveTranscript.value = recognizedText
+                sendVoiceCommand(recognizedText)
+            },
+            onPartialResult = { partial ->
+                _liveTranscript.value = partial
+                _statusText.value = "Listening: $partial"
+            },
+            onErrorOccurred = { errorMsg ->
+                Log.w("ShivaiVM", "SpeechRecognizer error: $errorMsg")
+            }
+        )
     }
 
     private fun monitorTrackPlayerState() {
@@ -451,6 +475,32 @@ class ShivaiViewModel(application: Application) : AndroidViewModel(application) 
         _state.value = ShivaiState.SPEAKING
         _statusText.value = "Shivai is speaking..."
         ttsFallback?.speak(text)
+    }
+
+    fun startRealtimeSpeech(preferHindi: Boolean = true) {
+        val apiKey = settingsPrefs.getEffectiveApiKey()
+        if (apiKey.isBlank()) {
+            _errorMessage.value = "Gemini API key is required. Configure it in Settings."
+            return
+        }
+        _state.value = ShivaiState.LISTENING
+        _statusText.value = "Listening to your voice..."
+        _liveTranscript.value = ""
+        realtimeSpeechRecognizer?.startListening(preferHindi)
+    }
+
+    fun stopRealtimeSpeech() {
+        realtimeSpeechRecognizer?.stopListening()
+        if (_state.value == ShivaiState.LISTENING) {
+            _state.value = ShivaiState.THINKING
+            _statusText.value = "Shivai processing..."
+        }
+    }
+
+    fun cancelRealtimeSpeech() {
+        realtimeSpeechRecognizer?.cancel()
+        _state.value = ShivaiState.STANDBY
+        _statusText.value = "Shivai Standby"
     }
 
     fun clearChat() {
@@ -793,6 +843,7 @@ class ShivaiViewModel(application: Application) : AndroidViewModel(application) 
 
     override fun onCleared() {
         super.onCleared()
+        realtimeSpeechRecognizer?.destroy()
         audioRecorder?.stopRecording()
         wakeWordEngine?.stopListening()
         audioTrackPlayer.release()
