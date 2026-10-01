@@ -361,6 +361,23 @@ fun SettingsScreen(
                             )
                         )
                     }
+
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.speakTextResponse("नमस्ते! मैं शिवाय हूँ। आपकी सहायता के लिए तैयार हूँ। Hello! I am Shivai, your AI assistant.")
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, NeonPurple)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.RecordVoiceOver,
+                            contentDescription = null,
+                            tint = NeonPurple,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("TEST NATURAL SPEECH (HINDI & ENGLISH)", color = NeonPurple, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
 
