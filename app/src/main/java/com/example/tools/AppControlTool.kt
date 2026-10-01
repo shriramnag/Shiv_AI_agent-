@@ -2,7 +2,9 @@ package com.example.tools
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import org.json.JSONArray
 import org.json.JSONObject
@@ -69,7 +71,12 @@ class AppControlTool(private val context: Context) : ShivaiTool {
         }
 
         // Fuzzy match installed packages
-        val installedApps = pm.getInstalledApplications(0)
+        val installedApps = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0))
+        } else {
+            @Suppress("DEPRECATION")
+            pm.getInstalledApplications(0)
+        }
         for (app in installedApps) {
             val label = pm.getApplicationLabel(app).toString().lowercase()
             if (label.contains(target) || target.contains(label)) {

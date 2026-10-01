@@ -149,7 +149,7 @@ fun MainContent(viewModel: ShivaiViewModel) {
                             .border(1.dp, CyberBorder),
                         containerColor = CyberSurface
                     ) {
-                        ShivaiTab.values().forEach { tab ->
+                        ShivaiTab.entries.forEach { tab ->
                             NavigationBarItem(
                                 selected = currentTab == tab,
                                 onClick = { currentTab = tab },

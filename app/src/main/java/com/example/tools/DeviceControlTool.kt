@@ -6,6 +6,7 @@ import android.media.AudioManager
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.os.VibratorManager
 import android.view.KeyEvent
 import org.json.JSONArray
 import org.json.JSONObject
@@ -52,7 +53,13 @@ class DeviceControlTool(private val context: Context) : ShivaiTool {
                 }
             }
             "vibrate" -> {
-                val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                    vibratorManager?.defaultVibrator
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     vibrator?.vibrate(VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE))
                 } else {
