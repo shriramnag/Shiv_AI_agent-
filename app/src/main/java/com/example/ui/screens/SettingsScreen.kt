@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,16 +26,22 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -58,12 +65,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.local.SettingsPreferences
 import com.example.ui.ShivaiViewModel
 import com.example.ui.theme.CyberBlack
 import com.example.ui.theme.CyberBorder
@@ -84,12 +95,39 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val isAccessibilityEnabled by viewModel.isAccessibilityEnabled.collectAsState()
 
     var apiKeyInput by remember { mutableStateOf("") }
+    var isKeyVisible by remember { mutableStateOf(false) }
+    var showLongPressMenu by remember { mutableStateOf(false) }
     var isTestingKey by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
+
+    fun pasteAndSaveApiKey() {
+        val clipText = clipboardManager.getText()?.text
+        if (!clipText.isNullOrBlank()) {
+            val cleanKey = SettingsPreferences.sanitizeApiKey(clipText)
+            if (cleanKey.isNotBlank()) {
+                apiKeyInput = cleanKey
+                viewModel.saveApiKey(cleanKey)
+                Toast.makeText(context, "✅ API Key पेस्ट और सेव हो गई!", Toast.LENGTH_SHORT).show()
+                // Auto test key in background
+                isTestingKey = true
+                testResult = null
+                scope.launch {
+                    val res = viewModel.testApiKey()
+                    isTestingKey = false
+                    testResult = res
+                }
+            } else {
+                Toast.makeText(context, "क्लिपबोर्ड में कोई मान्य API Key नहीं मिली!", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            Toast.makeText(context, "क्लिपबोर्ड खाली है! पहले Google AI Studio से API Key कॉपी करें।", Toast.LENGTH_LONG).show()
+        }
+    }
 
     var liveModel by remember { mutableStateOf(viewModel.settingsPrefs.liveModel) }
     var textModel by remember { mutableStateOf(viewModel.settingsPrefs.textModel) }
@@ -170,22 +208,217 @@ fun SettingsScreen(
                         fontWeight = FontWeight.Medium
                     )
 
-                    OutlinedTextField(
-                        value = apiKeyInput,
-                        onValueChange = { apiKeyInput = it },
-                        placeholder = { Text("Enter / Replace Gemini API Key", color = TextSecondary, fontSize = 13.sp) },
-                        visualTransformation = PasswordVisualTransformation(),
+                    // One-Tap Quick Paste Button
+                    Button(
+                        onClick = { pasteAndSaveApiKey() },
+                        colors = ButtonDefaults.buttonColors(containerColor = CyberSurface),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .testTag("settings_api_key_input"),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NeonCyan,
-                            unfocusedBorderColor = CyberBorder,
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary
-                        ),
-                        singleLine = true
-                    )
+                            .border(1.dp, NeonCyan.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
+                            .testTag("settings_paste_clipboard_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentPaste,
+                            contentDescription = "Paste from Clipboard",
+                            tint = NeonCyan,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "PASTE FROM CLIPBOARD (क्लिपबोर्ड से पेस्ट करें)",
+                            color = NeonCyan,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    // Interactive Input Box with Long-Press Gesture Detection
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        showLongPressMenu = true
+                                    }
+                                )
+                            }
+                    ) {
+                        OutlinedTextField(
+                            value = apiKeyInput,
+                            onValueChange = {
+                                apiKeyInput = it
+                            },
+                            placeholder = { Text("Long-press here or tap Paste (यहाँ दबाकर रखें)", color = TextSecondary, fontSize = 12.sp) },
+                            visualTransformation = if (isKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Key,
+                                    contentDescription = null,
+                                    tint = NeonCyan,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            trailingIcon = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(
+                                        onClick = { pasteAndSaveApiKey() },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ContentPaste,
+                                            contentDescription = "Paste",
+                                            tint = NeonCyan,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+
+                                    IconButton(
+                                        onClick = { isKeyVisible = !isKeyVisible },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                            contentDescription = if (isKeyVisible) "Hide Key" else "Show Key",
+                                            tint = TextSecondary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+
+                                    if (apiKeyInput.isNotEmpty()) {
+                                        IconButton(
+                                            onClick = { apiKeyInput = "" },
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Clear,
+                                                contentDescription = "Clear",
+                                                tint = TextSecondary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("settings_api_key_input"),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = NeonCyan,
+                                unfocusedBorderColor = CyberBorder,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary,
+                                focusedContainerColor = CyberBlack.copy(alpha = 0.5f),
+                                unfocusedContainerColor = CyberBlack.copy(alpha = 0.5f)
+                            ),
+                            singleLine = true
+                        )
+
+                        // Long-Press Floating Context Menu
+                        DropdownMenu(
+                            expanded = showLongPressMenu,
+                            onDismissRequest = { showLongPressMenu = false },
+                            modifier = Modifier
+                                .background(CyberCard)
+                                .border(1.dp, NeonCyan, RoundedCornerShape(10.dp))
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.ContentPaste,
+                                            contentDescription = null,
+                                            tint = NeonCyan,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(
+                                            "PASTE (पेस्ट करें)",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    showLongPressMenu = false
+                                    pasteAndSaveApiKey()
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = if (isKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                            contentDescription = null,
+                                            tint = TextSecondary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(
+                                            if (isKeyVisible) "Hide Key (छुपाएं)" else "Show Key (दिखाएं)",
+                                            color = TextPrimary,
+                                            fontSize = 13.sp
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    showLongPressMenu = false
+                                    isKeyVisible = !isKeyVisible
+                                }
+                            )
+
+                            if (apiKeyInput.isNotBlank()) {
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.Clear,
+                                                contentDescription = null,
+                                                tint = NeonRed,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Text(
+                                                "Clear Input (साफ़ करें)",
+                                                color = NeonRed,
+                                                fontSize = 13.sp
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        showLongPressMenu = false
+                                        apiKeyInput = ""
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    // Helper & Format Tip
+                    if (apiKeyInput.isNotBlank()) {
+                        if (apiKeyInput.startsWith("AIzaSy")) {
+                            Text(
+                                text = "✓ Gemini API Key प्रारूप सही है (${apiKeyInput.length} अक्षर)",
+                                color = NeonGreen,
+                                fontSize = 11.sp
+                            )
+                        } else {
+                            Text(
+                                text = "⚠ ध्यान दें: सामान्यतः Gemini API Key 'AIzaSy' से शुरू होती है।",
+                                color = NeonGold,
+                                fontSize = 11.sp
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "💡 सुझाव: बॉक्स पर थोड़ी देर दबाकर रखें (Long Press) या 'PASTE' बटन दबाएं।",
+                            color = TextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -194,10 +427,16 @@ fun SettingsScreen(
                         Button(
                             onClick = {
                                 if (apiKeyInput.isNotBlank()) {
-                                    viewModel.saveApiKey(apiKeyInput.trim())
+                                    val cleaned = apiKeyInput.trim()
+                                        .removeSurrounding("\"")
+                                        .removeSurrounding("'")
+                                        .trim()
+                                    viewModel.saveApiKey(cleaned)
                                     apiKeyInput = ""
                                     testResult = null
                                     Toast.makeText(context, "API Key saved securely.", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Please enter or paste an API Key first.", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),

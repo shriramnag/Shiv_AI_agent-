@@ -29,13 +29,35 @@ class SettingsPreferences(context: Context) {
         const val DEFAULT_LIVE_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
         const val DEFAULT_TEXT_MODEL = "gemini-2.5-flash"
         const val DEFAULT_VOICE_NAME = "Aoede"
+
+        fun sanitizeApiKey(raw: String): String {
+            if (raw.isBlank()) return ""
+            var key = raw
+            // Remove zero-width spaces, BOM, directional marks, and NBSP
+            key = key.replace("[\u200B\u200C\u200D\uFEFF\u00A0\u200E\u200F\u202A-\u202E]".toRegex(), "")
+            // Remove extra whitespace, newlines, tabs
+            key = key.trim()
+            // If copied as key=AIza... or GEMINI_API_KEY=AIza...
+            if (key.contains("=")) {
+                key = key.substringAfterLast("=").trim()
+            }
+            // If copied as Bearer AIza...
+            if (key.startsWith("Bearer ", ignoreCase = true)) {
+                key = key.substring(7).trim()
+            }
+            // Strip any surrounding quotes or punctuation
+            key = key.removeSurrounding("\"").removeSurrounding("'").removeSurrounding("`").trim()
+            key = key.replace("\"", "").replace("'", "").replace("`", "").replace(";", "").replace(",", "").trim()
+            return key
+        }
     }
 
     private val _apiKeyFlow = MutableStateFlow(getEffectiveApiKey())
     val apiKeyFlow: StateFlow<String> = _apiKeyFlow.asStateFlow()
 
     fun getCustomApiKey(): String {
-        return prefs.getString(KEY_API_KEY, "") ?: ""
+        val raw = prefs.getString(KEY_API_KEY, "") ?: ""
+        return sanitizeApiKey(raw)
     }
 
     fun getEffectiveApiKey(): String {
@@ -45,7 +67,7 @@ class SettingsPreferences(context: Context) {
         return try {
             val buildConfigKey = BuildConfig.GEMINI_API_KEY
             if (buildConfigKey.isNotBlank() && buildConfigKey != "MY_GEMINI_API_KEY") {
-                buildConfigKey
+                sanitizeApiKey(buildConfigKey)
             } else ""
         } catch (e: Exception) {
             ""
@@ -53,7 +75,8 @@ class SettingsPreferences(context: Context) {
     }
 
     fun saveApiKey(key: String) {
-        prefs.edit().putString(KEY_API_KEY, key.trim()).apply()
+        val clean = sanitizeApiKey(key)
+        prefs.edit().putString(KEY_API_KEY, clean).apply()
         _apiKeyFlow.value = getEffectiveApiKey()
     }
 

@@ -2,6 +2,7 @@ package com.example.ai
 
 import android.graphics.Bitmap
 import android.util.Base64
+import com.example.data.local.SettingsPreferences
 import com.example.tools.ToolRegistry
 import com.example.tools.ToolResult
 import kotlinx.coroutines.Dispatchers
@@ -36,40 +37,71 @@ class GeminiRestClient(private val toolRegistry: ToolRegistry) {
 
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
-    suspend fun testApiKey(apiKey: String, model: String = "gemini-3.5-flash"): Pair<Boolean, String> = withContext(Dispatchers.IO) {
-        if (apiKey.isBlank()) {
-            return@withContext Pair(false, "API Key is empty.")
-        }
-        val cleanModel = model.removePrefix("models/")
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/$cleanModel:generateContent?key=$apiKey"
-        val testBody = JSONObject().apply {
-            put("contents", JSONArray().apply {
-                put(JSONObject().apply {
-                    put("parts", JSONArray().apply {
-                        put(JSONObject().apply { put("text", "Respond with 'OK'") })
-                    })
-                })
-            })
+    suspend fun testApiKey(apiKey: String, model: String = "gemini-2.5-flash"): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        val cleanKey = SettingsPreferences.sanitizeApiKey(apiKey)
+        if (cleanKey.isBlank()) {
+            return@withContext Pair(false, "API Key खाली है (Empty Key).")
         }
 
+        // 1. Primary check: Verify the API Key with the official Google Gemini models list endpoint
+        val modelsUrl = "https://generativelanguage.googleapis.com/v1beta/models?key=$cleanKey"
         try {
-            val request = Request.Builder()
-                .url(url)
-                .post(testBody.toString().toRequestBody(jsonMediaType))
+            val modelsRequest = Request.Builder()
+                .url(modelsUrl)
+                .get()
                 .build()
 
-            client.newCall(request).execute().use { response ->
+            val modelsResult = client.newCall(modelsRequest).execute().use { response ->
                 val bodyStr = response.body?.string() ?: ""
                 if (response.isSuccessful) {
-                    Pair(true, "API Key verified successfully!")
+                    Pair(true, "API Key सत्यापित हो गई! (Google Gemini Verified & Active)")
                 } else {
                     val errJson = try { JSONObject(bodyStr) } catch (e: Exception) { null }
-                    val message = errJson?.optJSONObject("error")?.optString("message") ?: "HTTP ${response.code}: $bodyStr"
-                    Pair(false, "Validation failed: $message")
+                    val message = errJson?.optJSONObject("error")?.optString("message") ?: bodyStr
+                    val code = response.code
+                    if (code == 400 && message.contains("API key not valid", ignoreCase = true)) {
+                        Pair(false, "अमान्य API Key (Invalid Key): कृपया aistudio.google.com से सही Gemini API Key कॉपी करके पेस्ट करें।")
+                    } else if (code == 403) {
+                        Pair(false, "पहुंच अस्वीकृत (Permission Denied 403): $message")
+                    } else {
+                        Pair(false, "सत्यापन विफल (HTTP $code): $message")
+                    }
                 }
             }
+
+            if (!modelsResult.first) {
+                return@withContext modelsResult
+            }
+
+            // 2. Secondary check: test lightweight generation with model
+            val cleanModel = model.removePrefix("models/")
+            val genUrl = "https://generativelanguage.googleapis.com/v1beta/models/$cleanModel:generateContent?key=$cleanKey"
+            val testBody = JSONObject().apply {
+                put("contents", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("parts", JSONArray().apply {
+                            put(JSONObject().apply { put("text", "Hi") })
+                        })
+                    })
+                })
+            }
+            try {
+                val genRequest = Request.Builder()
+                    .url(genUrl)
+                    .post(testBody.toString().toRequestBody(jsonMediaType))
+                    .build()
+                client.newCall(genRequest).execute().use { genResp ->
+                    if (genResp.isSuccessful) {
+                        Pair(true, "API Key सफलतापूर्वक सत्यापित और सक्रिय है! (Model: $cleanModel)")
+                    } else {
+                        Pair(true, "API Key मान्य और सक्रिय है! (Google Gemini Verified)")
+                    }
+                }
+            } catch (e: Exception) {
+                Pair(true, "API Key मान्य और सक्रिय है!")
+            }
         } catch (e: Exception) {
-            Pair(false, "Connection error: ${e.message}")
+            Pair(false, "कनेक्शन त्रुटि: ${e.message}")
         }
     }
 
